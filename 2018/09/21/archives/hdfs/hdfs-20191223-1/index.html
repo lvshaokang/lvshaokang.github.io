@@ -7,7 +7,7 @@
     error: 'Copy error',
     noSupport: 'The browser does not support'
   }
-} </script><meta name="generator" content="Hexo 4.1.0"></head><body><i class="fa fa-arrow-right" id="toggle-sidebar" aria-hidden="true"></i><div id="sidebar"><div class="toggle-sidebar-info text-center"><span data-toggle="Toggle article">Toggle site</span><hr></div><div class="sidebar-toc"><div class="sidebar-toc__title">Catalog</div><div class="sidebar-toc__progress"><span class="progress-notice">You've read</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#目标"><span class="toc-number">1.</span> <span class="toc-text">目标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#为什么要改变HDFS-tmp-存储目录"><span class="toc-number">2.</span> <span class="toc-text">为什么要改变HDFS &#x2F;tmp 存储目录</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#整理块大小、副本数的理解"><span class="toc-number">3.</span> <span class="toc-text">整理块大小、副本数的理解</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#块大小"><span class="toc-number">3.1.</span> <span class="toc-text">块大小</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#副本数"><span class="toc-number">3.2.</span> <span class="toc-text">副本数</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#整理小文件的理解"><span class="toc-number">4.</span> <span class="toc-text">整理小文件的理解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#整理HDFS的架构"><span class="toc-number">5.</span> <span class="toc-text">整理HDFS的架构</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#NameNode"><span class="toc-number">5.1.</span> <span class="toc-text">NameNode</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DataNode"><span class="toc-number">5.2.</span> <span class="toc-text">DataNode</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SecondeayNameNode"><span class="toc-number">5.3.</span> <span class="toc-text">SecondeayNameNode</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SecondaryNameNode和NameNode的交互流程"><span class="toc-number">6.</span> <span class="toc-text">SecondaryNameNode和NameNode的交互流程</span></a></li></ol></div></div><div class="author-info hide"><div class="author-info__avatar text-center"><img src="/img/red.jpg"></div><div class="author-info__name text-center">Red</div><div class="author-info__description text-center">Developer</div><div class="follow-button"><a href="https://github.com/lvshaokang" target="_blank" rel="noopener">Follow Me</a></div><hr><div class="author-info-articles"><a class="author-info-articles__archives article-meta" href="/archives"><span class="pull-left">Articles</span><span class="pull-right">5</span></a><a class="author-info-articles__tags article-meta" href="/tags"><span class="pull-left">Tags</span><span class="pull-right">4</span></a><a class="author-info-articles__categories article-meta" href="/categories"><span class="pull-left">Categories</span><span class="pull-right">4</span></a></div></div></div><div id="content-outer"><div class="no-bg" id="top-container"><div id="page-header"><span class="pull-left"> <a id="site-name" href="/">RedのBlog</a></span><i class="fa fa-bars toggle-menu pull-right" aria-hidden="true"></i><span class="pull-right menus"><a class="site-page" href="/">Home</a><a class="site-page" href="/archives">Archives</a><a class="site-page" href="/tags">Tags</a><a class="site-page" href="/categories">Categories</a></span></div><div id="post-info"><div id="post-title">为什么要改变HDFS tmp 文件存储目录&amp;整理块大小、副本数、小文件的理解&amp;整理HDFS架构&amp;整理SNN流程</div><div id="post-meta"><time class="post-meta__date"><i class="fa fa-calendar" aria-hidden="true"></i> 2018-09-21</time><span class="post-meta__separator">|</span><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/Hadoop/">Hadoop</a><i class="fa fa-angle-right" aria-hidden="true"></i><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/Hadoop/HDFS/">HDFS</a><div class="post-meta-wordcount"><span>Word count: </span><span class="word-count">1.6k</span><span class="post-meta__separator">|</span><span>Reading time: 5 min</span></div></div></div></div><div class="layout" id="content-inner"><article id="post"><div class="article-container" id="post-content"><h3 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h3><ol>
+} </script><meta name="generator" content="Hexo 4.1.0"></head><body><i class="fa fa-arrow-right" id="toggle-sidebar" aria-hidden="true"></i><div id="sidebar"><div class="toggle-sidebar-info text-center"><span data-toggle="Toggle article">Toggle site</span><hr></div><div class="sidebar-toc"><div class="sidebar-toc__title">Catalog</div><div class="sidebar-toc__progress"><span class="progress-notice">You've read</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#目标"><span class="toc-number">1.</span> <span class="toc-text">目标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#为什么要改变HDFS-tmp-存储目录"><span class="toc-number">2.</span> <span class="toc-text">为什么要改变HDFS &#x2F;tmp 存储目录</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#整理块大小、副本数的理解"><span class="toc-number">3.</span> <span class="toc-text">整理块大小、副本数的理解</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#块大小"><span class="toc-number">3.1.</span> <span class="toc-text">块大小</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#副本数"><span class="toc-number">3.2.</span> <span class="toc-text">副本数</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#整理小文件的理解"><span class="toc-number">4.</span> <span class="toc-text">整理小文件的理解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#整理HDFS的架构"><span class="toc-number">5.</span> <span class="toc-text">整理HDFS的架构</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#NameNode"><span class="toc-number">5.1.</span> <span class="toc-text">NameNode</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DataNode"><span class="toc-number">5.2.</span> <span class="toc-text">DataNode</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SecondaryNameNode和NameNode的交互流程"><span class="toc-number">6.</span> <span class="toc-text">SecondaryNameNode和NameNode的交互流程</span></a></li></ol></div></div><div class="author-info hide"><div class="author-info__avatar text-center"><img src="/img/red.jpg"></div><div class="author-info__name text-center">Red</div><div class="author-info__description text-center">Developer</div><div class="follow-button"><a href="https://github.com/lvshaokang" target="_blank" rel="noopener">Follow Me</a></div><hr><div class="author-info-articles"><a class="author-info-articles__archives article-meta" href="/archives"><span class="pull-left">Articles</span><span class="pull-right">5</span></a><a class="author-info-articles__tags article-meta" href="/tags"><span class="pull-left">Tags</span><span class="pull-right">4</span></a><a class="author-info-articles__categories article-meta" href="/categories"><span class="pull-left">Categories</span><span class="pull-right">4</span></a></div></div></div><div id="content-outer"><div class="no-bg" id="top-container"><div id="page-header"><span class="pull-left"> <a id="site-name" href="/">RedのBlog</a></span><i class="fa fa-bars toggle-menu pull-right" aria-hidden="true"></i><span class="pull-right menus"><a class="site-page" href="/">Home</a><a class="site-page" href="/archives">Archives</a><a class="site-page" href="/tags">Tags</a><a class="site-page" href="/categories">Categories</a></span></div><div id="post-info"><div id="post-title">为什么要改变HDFS tmp 文件存储目录&amp;整理块大小、副本数、小文件的理解&amp;整理HDFS架构&amp;整理SNN流程</div><div id="post-meta"><time class="post-meta__date"><i class="fa fa-calendar" aria-hidden="true"></i> 2018-09-21</time><span class="post-meta__separator">|</span><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/Hadoop/">Hadoop</a><i class="fa fa-angle-right" aria-hidden="true"></i><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/Hadoop/HDFS/">HDFS</a><div class="post-meta-wordcount"><span>Word count: </span><span class="word-count">1.6k</span><span class="post-meta__separator">|</span><span>Reading time: 5 min</span></div></div></div></div><div class="layout" id="content-inner"><article id="post"><div class="article-container" id="post-content"><h3 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h3><ol>
 <li>为什么要改变HDFS /tmp 存储目录</li>
 <li>整理块大小、副本数的理解</li>
 <li>整理小文件的理解</li>
@@ -82,25 +82,74 @@
 </ol>
 <h4 id="DataNode"><a href="#DataNode" class="headerlink" title="DataNode"></a>DataNode</h4><p>DataNode 简写为DN，也被称为数据节点，它是HDFS主从架构中的小弟，它主要用来存储数据块和数据块校验和，这些信息是以Linux文件的形式保存在本地磁盘上的。DataNode会定期向NameNode发送心跳（默认3s）和块报告（默认6小时）。</p>
 <ul>
-<li>心跳<br>DN发送心跳是为了告诉NN我还活着，心跳间隔由<code>hdfs-default.xml</code>文件中的<code>dfs.heartbeat.interval</code>参数控制，默认每3s发送一次。<table>
+<li><p>心跳<br>DN发送心跳是为了告诉NN我还活着，心跳间隔由<code>hdfs-default.xml</code>文件中的<code>dfs.heartbeat.interval</code>参数控制，默认每3s发送一次。</p>
+<table>
 <thead>
 <tr>
-<th align="left">KEY</th>
+<th>KEY</th>
 <th>VALUE</th>
 <th>DESC</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="left">dfs.heartbeat.interval</td>
+<td>dfs.heartbeat.interval</td>
 <td>3</td>
 <td>Determines datanode heartbeat interval in seconds.</td>
 </tr>
 </tbody></table>
 </li>
-<li>块报告<br>DN发送块报告是为了扫描数据目录并协调内存和磁盘块之间的差异，块报告间隔由<code>hdfs-default.xml</code>文件中的<code>dfs.datanode.directoryscan.interval</code>参数和<code>dfs.blockreport.intervalMsec</code>参数控制的，默认每6小时发送一次。</li>
+<li><p>块报告<br>DN发送块报告是为了扫描数据目录并协调内存和磁盘块之间的差异，块报告间隔由<code>hdfs-default.xml</code>文件中的<code>dfs.datanode.directoryscan.interval</code>参数和<code>dfs.blockreport.intervalMsec</code>参数控制的，默认每6小时发送一次。<br><strong>在生产环境中，建议缩短周期为3小时。</strong></p>
+<table>
+<thead>
+<tr>
+<th>KEY</th>
+<th>VALUE</th>
+<th align="left">DESC</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>dfs.datanode.directoryscan.interval</td>
+<td>21600</td>
+<td align="left">Interval in seconds for Datanode to scan data directories and reconcile the difference between blocks in memory and on the disk.</td>
+</tr>
+<tr>
+<td>dfs.blockreport.intervalMsec</td>
+<td>21600000</td>
+<td align="left">Determines block reporting interval in milliseconds.</td>
+</tr>
+<tr>
+<td>#### SecondeayNameNode</td>
+<td></td>
+<td align="left"></td>
+</tr>
+<tr>
+<td>SecondeayNameNode 简写为SNN，也被称为第二名称节点，它是HDFS主从架构中的老二，它会定期合并<code>fsimage+editlog</code>文件，这个过程也被称为checkpoint。文件合并间隔是由<code>hdfs-default.xml</code>文件中的<code>dfs.namenode.checkpoint.period</code>参数（默认1小时）和<code>dfs.namenode.checkpoint.txns</code>参数（默认1000000条）控制的，两个参数满足其一即可触发合并机制。</td>
+<td></td>
+<td align="left"></td>
+</tr>
+</tbody></table>
+</li>
 </ul>
-<p><strong>在生产环境中，建议缩短周期为3小时。</strong><br>| KEY            | VALUE                    | DESC                                    |<br>| :————- | ———————— | ————————————— |<br>| dfs.datanode.directoryscan.interval | 21600 | Interval in seconds for Datanode to scan data directories and reconcile the difference between blocks in memory and on the disk. |<br>| dfs.blockreport.intervalMsec | 21600000 | Determines block reporting interval in milliseconds. |</p>
-<h4 id="SecondeayNameNode"><a href="#SecondeayNameNode" class="headerlink" title="SecondeayNameNode"></a>SecondeayNameNode</h4><p>SecondeayNameNode 简写为SNN，也被称为第二名称节点，它是HDFS主从架构中的老二，它会定期合并<code>fsimage+editlog</code>文件，这个过程也被称为checkpoint。文件合并间隔是由<code>hdfs-default.xml</code>文件中的<code>dfs.namenode.checkpoint.period</code>参数（默认1小时）和<code>dfs.namenode.checkpoint.txns</code>参数（默认1000000条）控制的，两个参数满足其一即可触发合并机制。<br>| KEY            | VALUE                    | DESC                                    |<br>| :————- | ———————— | ————————————— |<br>| dfs.namenode.checkpoint.period | 3600 | The number of seconds between two periodic checkpoints. |<br>| dfs.namenode.checkpoint.txns | 1000000 | The Secondary NameNode or CheckpointNode will create a checkpoint of the namespace every ‘dfs.namenode.checkpoint.txns’ transactions, regardless of whether ‘dfs.namenode.checkpoint.period’ has expired. |<br><strong>注：虽然SNN能够减轻单点故障，但是还会有风险，因为在checkpoint完的下一个时间周期内发生故障，数据是恢复不了的</strong></p>
+<table>
+<thead>
+<tr>
+<th>KEY</th>
+<th>VALUE</th>
+<th align="left">DESC</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>dfs.namenode.checkpoint.period</td>
+<td>3600</td>
+<td align="left">The number of seconds between two periodic checkpoints.</td>
+</tr>
+<tr>
+<td>dfs.namenode.checkpoint.txns</td>
+<td>1000000</td>
+<td align="left">The Secondary NameNode or CheckpointNode will create a checkpoint of the namespace every ‘dfs.namenode.checkpoint.txns’ transactions, regardless of whether ‘dfs.namenode.checkpoint.period’ has expired.</td>
+</tr>
+</tbody></table>
+<p><strong>注：虽然SNN能够减轻单点故障，但是还会有风险，因为在checkpoint完的下一个时间周期内发生故障，数据是恢复不了的</strong></p>
 <h3 id="SecondaryNameNode和NameNode的交互流程"><a href="#SecondaryNameNode和NameNode的交互流程" class="headerlink" title="SecondaryNameNode和NameNode的交互流程"></a>SecondaryNameNode和NameNode的交互流程</h3><p>   <img src="/img/hdfs/NN-SNN.png" alt="SNN和NN的交互流程"></p>
 <ol>
 <li>NN滚动正在写入的editlog文件，并生成新的空的edits.new文件，并将以后的更新操作写入edits.new文件。</li>
