@@ -1,0 +1,62 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta name="description" content="Spark源码解析-Shuffle"><meta name="keywords" content="源码解析"><meta name="author" content="Red"><meta name="copyright" content="Red"><title>Spark源码解析-Shuffle | RedのBlog</title><link rel="shortcut icon" href="/melody-favicon.ico"><link rel="stylesheet" href="/css/index.css?version=1.6.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css?version=1.6.1"><meta name="format-detection" content="telephone=no"><meta http-equiv="x-dns-prefetch-control" content="on"><link rel="dns-prefetch" href="https://cdn.jsdelivr.net"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><script>var GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  copy: {
+    success: 'Copy successfully',
+    error: 'Copy error',
+    noSupport: 'The browser does not support'
+  }
+} </script><meta name="generator" content="Hexo 4.1.0"></head><body><i class="fa fa-arrow-right" id="toggle-sidebar" aria-hidden="true"></i><div id="sidebar" data-display="true"><div class="toggle-sidebar-info text-center"><span data-toggle="Toggle article">Toggle site</span><hr></div><div class="sidebar-toc"><div class="sidebar-toc__title">Catalog</div><div class="sidebar-toc__progress"><span class="progress-notice">You've read</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#说明："><span class="toc-number">1.</span> <span class="toc-text">说明：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Shuffle-Write-map-task"><span class="toc-number">2.</span> <span class="toc-text">Shuffle Write(map task)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Shuffle-Read-reduce-task"><span class="toc-number">3.</span> <span class="toc-text">Shuffle Read(reduce task)</span></a></li></ol></div></div><div class="author-info hide"><div class="author-info__avatar text-center"><img src="/img/red.jpg"></div><div class="author-info__name text-center">Red</div><div class="author-info__description text-center">Developer</div><div class="follow-button"><a href="https://github.com/lvshaokang" target="_blank" rel="noopener">Follow Me</a></div><hr><div class="author-info-articles"><a class="author-info-articles__archives article-meta" href="/archives"><span class="pull-left">Articles</span><span class="pull-right">14</span></a><a class="author-info-articles__tags article-meta" href="/tags"><span class="pull-left">Tags</span><span class="pull-right">12</span></a><a class="author-info-articles__categories article-meta" href="/categories"><span class="pull-left">Categories</span><span class="pull-right">10</span></a></div></div></div><div id="content-outer"><div class="no-bg" id="top-container"><div id="page-header"><span class="pull-left"> <a id="site-name" href="/">RedのBlog</a></span><i class="fa fa-bars toggle-menu pull-right" aria-hidden="true"></i><span class="pull-right menus">   <a class="site-page" href="/">Home</a><a class="site-page" href="/archives">Archives</a><a class="site-page" href="/tags">Tags</a><a class="site-page" href="/categories">Categories</a></span><span class="pull-right"></span></div><div id="post-info"><div id="post-title">Spark源码解析-Shuffle</div><div id="post-meta"><time class="post-meta__date"><i class="fa fa-calendar" aria-hidden="true"></i> 2019-05-04</time><span class="post-meta__separator">|</span><i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i><a class="post-meta__categories" href="/categories/Spark/">Spark</a><div class="post-meta-wordcount"><span>Word count: </span><span class="word-count">595</span><span class="post-meta__separator">|</span><span>Reading time: 2 min</span></div></div></div></div><div class="layout" id="content-inner"><article id="post"><div class="article-container" id="post-content"><h3 id="说明："><a href="#说明：" class="headerlink" title="说明："></a>说明：</h3><ol>
+<li>数据结构<ol>
+<li>聚合 =&gt; 类HashMap</li>
+<li>排序 =&gt; 类Array</li>
+</ol>
+</li>
+<li>Shuffle方式<ol>
+<li>2.x版本，shuffle方式全部统一到 <strong>Sort Shuffle</strong></li>
+</ol>
+</li>
+</ol>
+<h3 id="Shuffle-Write-map-task"><a href="#Shuffle-Write-map-task" class="headerlink" title="Shuffle Write(map task)"></a>Shuffle Write(map task)</h3><p><code>shuffle write</code>的通用框架需要执行的三个步骤是：数据聚合(<code>combine</code>)(可选) =&gt; 排序(可选) =&gt; 分区</p>
+<ul>
+<li><p>BypassMergeSortShuffleWriter</p>
+<p>特点：不需要map端聚合和排序</p>
+<p>触发条件：1. 没有map端聚合 2.分区数不多(<code>nums &lt; 200</code>) </p>
+<p>优缺点：</p>
+<p>​    优点：</p>
+<ol>
+<li>速度快，直接将record输出到不同的文件中</li>
+</ol>
+<p>​    缺点：</p>
+<ol>
+<li>每个分区都需要一个buffer缓冲区（<code>spark.shuffle.file.buffer,默认32k</code>）（内存IO）</li>
+<li>同时每个shuffle write需要创建分区个数个临时shuffle文件（磁盘IO）</li>
+</ol>
+<p>文件个数：</p>
+<p>​    每个MapTask,都会产生分区个数个临时shuffle文件和产生1个最终shuffle文件+1个索引文件,</p>
+<p>​    即，如果有N个mapTask（2个分区），最终会产生2N个文件</p>
+<p>​    第1个mapTask =&gt; 产生2个临时shuffle文件 =&gt; 1个最终shuffle文件+1个索引文件</p>
+<p>​    第2个mapTask =&gt; 产生2个临时shuffle文件 =&gt; 1个最终shuffle文件+1个索引文件</p>
+<p>源码解析：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 1.为每个分区创建一个临时的shuffle文件</span></span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; numPartitions; i++) &#123;</span><br><span class="line">      <span class="keyword">final</span> File file = tempShuffleBlockIdPlusFile._2()</span><br><span class="line">      <span class="comment">// 封装每个分区的输出流对象(DiskBlockObjectWriter)</span></span><br><span class="line">      partitionWriters[i] =</span><br><span class="line">        blockManager.getDiskWriter(blockId, file, serInstance, fileBufferSize, writeMetrics);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.遍历数据,将数据写入到对应的BufferedOutputStream中</span></span><br><span class="line"><span class="keyword">while</span> (records.hasNext()) &#123;</span><br><span class="line">	<span class="keyword">final</span> Product2&lt;K, V&gt; record = records.next();</span><br><span class="line">	<span class="keyword">final</span> K key = record._1();</span><br><span class="line">    partitionWriters[partitioner.getPartition(key)]</span><br><span class="line">        .write(key, record._2());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3.将每个分区的数据写入到磁盘上</span></span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; numPartitions; i++) &#123;</span><br><span class="line">  <span class="keyword">final</span> DiskBlockObjectWriter writer = partitionWriters[i];</span><br><span class="line">  <span class="comment">// 1.flush 2.new fileSegment(file, offset, length) </span></span><br><span class="line">  partitionWriterSegments[i] = writer.commitAndGet();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 4.构建最终的shuffle输出文件</span></span><br><span class="line">File output = shuffleBlockResolver.getDataFile(shuffleId, mapId);</span><br><span class="line">File tmp = Utils.tempFileWith(output);</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="comment">// 4.1 将每个分区的临时shuffle文件合并成一个最终的shuffle文件</span></span><br><span class="line">  partitionLengths = writePartitionedFile(tmp);</span><br><span class="line">  <span class="comment">// 4.2 将每个分区的offset写入index文件</span></span><br><span class="line">  shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, tmp);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>过程：</p>
+<ol>
+<li>为每个分区创建一个临时的shuffle文件 （文件句柄）</li>
+<li>遍历数据,将数据写入到对应的BufferedOutputStream中（这里会用到buffer缓冲区，带来内存IO）</li>
+<li>将每个分区的数据写入到磁盘上（磁盘IO）</li>
+<li>将每个分区的临时shuffle文件合并成一个最终的shuffle文件和一个index文件（合并过程会带来额外的磁盘IO）</li>
+</ol>
+</li>
+<li><p>SortShuffleWriter</p>
+</li>
+</ul>
+<ul>
+<li>UnsafeShuffleWriter</li>
+</ul>
+<h3 id="Shuffle-Read-reduce-task"><a href="#Shuffle-Read-reduce-task" class="headerlink" title="Shuffle Read(reduce task)"></a>Shuffle Read(reduce task)</h3></div></article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">Author: </span><span class="post-copyright-info"><a href="mailto:undefined">Red</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">Link: </span><span class="post-copyright-info"><a href="http://yoursite.com/2019/05/04/archives/spark/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-Shuffle/">http://yoursite.com/2019/05/04/archives/spark/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-Shuffle/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">Copyright Notice: </span><span class="post-copyright-info">All articles in this blog are licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> unless stating additionally.</span></div></div><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/">源码解析</a></div><nav id="pagination"><div class="next-post pull-right"><a href="/2019/01/01/archives/leetcode/TwoSum/"><span>1.两数之和(Two Sum)</span><i class="fa fa-chevron-right"></i></a></div></nav></div></div><footer><div class="layout" id="footer"><div class="copyright">&copy;2017 - 2021 By Red</div><div class="framework-info"><span>Driven - </span><a href="http://hexo.io" target="_blank" rel="noopener"><span>Hexo</span></a><span class="footer-separator">|</span><span>Theme - </span><a href="https://github.com/Molunerfinn/hexo-theme-melody" target="_blank" rel="noopener"><span>Melody</span></a></div><div class="footer_custom_text">Hi, welcome to my <a href="https://lvshaokang.github.io" target="_blank" rel="noopener">blog</a>!</div></div></footer><i class="fa fa-arrow-up" id="go-up" aria-hidden="true"></i><script src="https://cdn.jsdelivr.net/npm/animejs@latest/anime.min.js"></script><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js"></script><script src="https://cdn.jsdelivr.net/npm/velocity-animate@latest/velocity.min.js"></script><script src="https://cdn.jsdelivr.net/npm/velocity-ui-pack@latest/velocity.ui.min.js"></script><script src="/js/utils.js?version=1.6.1"></script><script src="/js/fancybox.js?version=1.6.1"></script><script src="/js/sidebar.js?version=1.6.1"></script><script src="/js/copy.js?version=1.6.1"></script><script src="/js/fireworks.js?version=1.6.1"></script><script src="/js/transition.js?version=1.6.1"></script><script src="/js/scroll.js?version=1.6.1"></script><script src="/js/head.js?version=1.6.1"></script><script>if(/Android|webOS|iPhone|iPod|iPad|BlackBerry/i.test(navigator.userAgent)) {
+  $('#nav').addClass('is-mobile')
+  $('footer').addClass('is-mobile')
+  $('#top-container').addClass('is-mobile')
+}</script></body></html>
